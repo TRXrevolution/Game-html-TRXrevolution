@@ -1,0 +1,782 @@
+<!-- © 2025 TRXrevolution || Pukul Tikus -->
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pukul Tikus - TRXrevolution</title>
+<style>
+  :root{
+    --bg: #0b0e13;
+    --panel: #0f1420;
+    --primary: #00eaff;
+    --highlight:#8af6ff;
+    --good:#27e68b;
+    --danger:#ff477e;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui, Arial, sans-serif; color:#e9f1f7; background:var(--bg);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;overflow: hidden;      
+  }
+  .game-wrap{
+    width:min(620px, 94vw); 
+  }
+  .card{
+    background:linear-gradient(180deg, #0f1420, #0b1220);
+    border:1px solid rgba(0,234,255,.25);
+    border-radius:16px; padding:18px;
+    box-shadow:0 0 24px rgba(0,234,255,.18), inset 0 0 30px rgba(0,0,0,.35);
+  }
+  .title{
+    display:flex; align-items:center; gap:10px; margin:0 0 10px;
+    font-weight:800; letter-spacing:.3px;
+  }
+  .title .dot{width:10px;height:10px;border-radius:50%;background:var(--primary);box-shadow:0 0 10px var(--primary)}
+  .hud{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:10px 0 16px;
+  }
+  .hud .pill{
+    background:#0c1624; border:1px solid rgba(0,234,255,.25);
+    padding:10px 12px; border-radius:10px; text-align:center;
+    box-shadow:inset 0 0 18px rgba(0,234,255,.07);
+  }
+  .hud b{ color:var(--primary); }
+
+  /* Board */
+  .board{
+    position:relative;
+    background: #0b1120;
+    border-radius:14px;
+    padding:10px;
+    border:1px solid rgba(0,234,255,.3);
+    box-shadow:0 0 20px rgba(0,234,255,.15), inset 0 0 25px rgba(0,0,0,.45);
+  }
+  .grid{
+    --size: 3; /* default 3x3 */
+    display:grid; grid-template-columns: repeat(var(--size), 1fr); gap:10px;
+  }
+  .hole{
+    aspect-ratio:1/1; position:relative; overflow:hidden; border-radius:12px;
+    background: radial-gradient(100% 100% at 50% 30%, #08101b, #060b14 60%, #04070d);
+    border:1px solid rgba(0,234,255,.18);
+    /* garis/grid highlight */
+    box-shadow:
+      inset 0 0 16px rgba(0,234,255,.08),
+      0 0 10px rgba(0,234,255,.05);
+  }
+  .mole{
+    position:absolute; inset:auto 0 0 0; margin:auto; width:70%;
+    translate:0 100%; transition:translate .12s ease;
+    filter: drop-shadow(0 8px 14px rgba(0,0,0,.6));
+    pointer-events:none; /* klik pada hole, bukan gambar */
+  }
+  .hole.show .mole{ translate:0 0; }
+
+  /* Menu overlay */
+  .overlay{  -webkit-tap-highlight-color:transparent;
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(4,8,16,.65); backdrop-filter: blur(6px);
+    z-index:5;
+  }
+  .menu{
+    width:min(520px,92vw);
+    background:linear-gradient(180deg, #0f1524, #0a1020);
+    border:1px solid rgba(0,234,255,.35);
+    border-radius:16px; padding:20px;
+    box-shadow:0 0 30px rgba(0,234,255,.25);
+    text-align:center;
+  }
+  .menu h2{ margin:6px 0 2px; }
+  .subtle{opacity:.8; font-size:.95rem}
+  .levels{ display:flex; gap:10px; justify-content:center; margin:14px 0 8px; flex-wrap:wrap; -webkit-tap-highlight-color:transparent; }
+  .btn{
+    cursor:pointer; border:none; border-radius:10px; padding:10px 14px; font-weight:700;
+    color:#001217; background:var(--primary);
+    box-shadow:0 0 18px rgba(0,234,255,.35);
+    transition: transform .08s ease, box-shadow .2s;
+  }
+  .btn:active{ transform:scale(.98) }
+  .btn.ghost{
+    background:transparent; color:var(--primary);
+    border:1px solid rgba(0,234,255,.4);
+  }
+  .lvl{
+    padding:10px 12px; border-radius:10px; cursor:pointer; user-select:none;
+    background:#0c1626; color:#e7f8ff; border:1px solid rgba(0,234,255,.25);
+    box-shadow:inset 0 0 18px rgba(0,234,255,.06);
+  }
+  .lvl.active{ outline:2px solid var(--primary); box-shadow:0 0 16px rgba(0,234,255,.35) }
+
+  /* Toast / info */
+  .toast{
+    text-align:center; margin:10px 0 0; opacity:.9; font-size:.9rem
+  }
+
+  /* Responsive */
+  @media (max-width:420px){
+    .hud{ grid-template-columns:1fr 1fr; }
+    .hud .pill:last-child{ grid-column:1 / -1 }
+  }
+  .row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* === Form & Button === */
+select,
+input[type=range] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+  <div class="game-wrap">
+    <div class="card">
+      <h1 class="title"><span class="dot"></span> Pukul Tikus</h1>      <div class="hud">
+  <div class="pill">⏱️ Waktu: <b id="time">30</b>s</div>
+  <div class="pill">🎯 Skor: <b id="score">0</b></div>
+  <div class="pill">🚀 Level: <b id="levelName">Easy</b></div>
+  <div class="pill">🔳 Grid: <b id="gridSizeInfo">3×3</b></div> <!-- ✅ wajib ada -->
+</div>
+
+      <div class="board">
+        <div id="grid" class="grid"></div>
+      </div>      <div class="toast" id="toast">Pukul tikus untuk dapat skor. Awas cepat hilang!</div>
+    </div><br><br>
+    <div style="text-align: center;">
+  <button class="btn ghost" onclick="exitToMenu()">Kembali ke Menu</button>
+</div>
+
+  </div>
+
+
+
+  <!-- MENU OVERLAY -->
+<div class="overlay" id="menuOverlay">
+  <div class="menu">
+    <!-- Judul -->
+    <h2 id="selamatDatang"></h2> 
+   <div class="subtle" id="motivationText">Pilih level dulu ya, lalu tekan Start</div>
+ <hr style="border: none; border-top: 2px solid #ffffff; margin: 2rem 5;">  
+   
+    <!-- Pilih Gambar -->
+    <div class="file-section" style="margin-top:15px; padding:10px; text-align:left;">
+      <label for="filePicker" class="custom-file-label btn">📂 Pilih Gambar</label>
+      <input id="filePicker" type="file" accept="image/*" style="display:none;">
+      <span id="fileName" style="margin-left:10px;">Belum ada gambar yang dipilih</span>
+    </div>
+   
+   <div id="previewBox" style="margin-top:10px; display:none; text-align:center;">
+  <hr style="border: none; border-top: 2px solid #ff004951; margin: 1rem 10;">  
+
+  <div id="loadingText" style="font-size: 13px; color: var(--muted); display:none;">
+    ⏳ Memuat gambar...
+  </div>
+
+  <img id="previewImg" src="" alt="Preview" 
+       style="max-width:200px; max-height:200px; border-radius:8px; display:none; margin:auto;"/>
+
+  <hr style="border: none; border-top: 2px solid #ff004951; margin: 1rem 10;">  
+
+  <div id="previewText" style="font-size: 13px; color: var(--muted); display: none;">
+    <br>Disarankan untuk menggunakan gambar dengan ukuran 5:5
+  </div>
+
+  <br>
+  <button class="btn ghost" id="removeImgBtn" style="margin-top:6px; display:none;">❌ Hapus Foto</button>
+</div>
+<br>
+
+
+      <hr style="border: none; border-top: 2px solid #00ffff5a; margin: 2rem 9;">  
+       <div class="instructions" style="margin-top:15px; font-size:14px; color:var(--muted); line-height:1.6;">
+  <details>
+    <summary style="
+      cursor:pointer; 
+      font-weight:600; 
+      color:#e6eef6; 
+      font-size:15px;
+      outline:none; 
+      -webkit-tap-highlight-color:transparent;
+      
+    ">
+      Pilih Opsi Tambahan
+    </summary>
+    <div style="
+      margin-top:10px; 
+      padding-left:12px; 
+      max-height:200px;   /* tinggi tetap */
+      overflow-y:auto;    /* aktifkan scroll */
+    ">
+      <!-- Pilih Level -->
+    <div style="margin-top:15px; text-align:left;">
+  <label>
+    <span style="color:white; font-size:13px; margin-right:6px;">Level :</span>
+    <select id="levelDropdown" style="color:white; padding:4px 6px; border-radius:6px;">
+      <option value="easy" selected>Easy</option>
+      <option value="normal">Normal</option>
+      <option value="hard">Hard</option>
+      <option value="insane">Insane</option>
+    </select>
+  </label>
+</div>
+
+    <!-- Pilih Grid -->
+    <div style="margin-top:15px; text-align:left;">
+      <label class="row">
+        <span style="color:white; font-size:13px; margin-right:6px;">Ukuran Grid :</span>
+        <select id="levelSelect" style="color:white; padding:4px 6px; border-radius:6px;">
+          <option value="2">2 x 2</option>
+          <option value="3" selected>3 x 3</option>
+          <option value="4">4 x 4</option>
+          <option value="5">5 x 5</option>
+        </select>
+      </label>
+    </div>
+    <!-- Pilih Waktu -->
+<div style="margin-top:15px; text-align:left;">
+  <label class="row">
+    <span style="color:white; font-size:13px; margin-right:6px;">Durasi Waktu :</span>
+    <select id="timeSelect" style="color:white; padding:4px 6px; border-radius:6px;">
+      <option value="15">15 detik</option>
+      <option value="30" selected>30 detik</option>
+      <option value="45">45 detik</option>
+      <option value="60">60 detik</option><br>
+    </select>
+  </label>
+</div>
+    </div>
+  </details>
+</div>
+ <hr style="border: none; border-top: 2px solid #ffffff; margin: 1rem 0;">  <button class="btn" id="startBtn" style="margin-top:18px;">Start</button>
+
+    <!-- Info tambahan -->
+<div class="subtle" style="margin-top:12px;">
+  <span id="gridInfoText">Grid 3×3 • Level Easy • 30 detik</span>
+  • Tikus muncul acak
+</div> <hr style="border: none; border-top: 2px solid #86ff6a27; margin: 9rem 9;"> 
+<div class="instructions" style="margin-top:15px; font-size:14px; color:var(--muted); line-height:1.6; text-align:left;">
+  <details>
+    <summary style="
+      cursor:pointer; 
+      font-weight:600; 
+      color:#e6eef6; 
+      font-size:15px;
+      outline:none; 
+      -webkit-tap-highlight-color:transparent;
+    ">
+      Apa Itu Pukul Tikus?
+    </summary>
+    <div style="
+      margin-top:10px; 
+      padding-left:12px; 
+      max-height:120px;   /* tinggi tetap */
+      overflow-y:auto;    /* aktifkan scroll */
+      text-align:left;
+    ">
+      <p>
+        <b>Pukul Tikus</b> adalah permainan cepat di mana kamu harus mengetuk tikus yang muncul secara acak di lubang. 
+        Tujuannya melatih <i>refleks</i>, kecepatan, dan konsentrasi ⚡.
+      </p>
+
+      <p><b>Cara memainkan:</b></p>
+      <ol style="margin-top:4px; margin-bottom:8px;">
+        <li>Pilih <b>ukuran grid</b> (2x2, 3x3, dst) dan <b>level kesulitan</b>.</li>
+        <li>Klik tombol <b>Start</b> untuk memulai permainan.</li>
+        <li>Tikus akan muncul secara acak — klik secepatnya sebelum menghilang!</li>
+        <li>Kumpulkan skor tertinggi sebelum waktu habis ⏱️.</li>
+      </ol>
+
+      <p><b>Fitur:</b></p>
+      <ul style="margin-top:4px; margin-bottom:8px;">
+        <li>🔳 Pilihan ukuran grid (2x2 sampai 5x5).</li>
+        <li>⚡ Level kesulitan: Easy, Normal, Hard, Insane.</li>
+        <li>🖼️ Bisa pilih <b>gambar sendiri</b> untuk mengganti tikus.</li>
+        <li>⏱️ Timer dan skor otomatis dihitung.</li>
+        <li>🏆 Setelah selesai, tampil skor akhir.</li>
+      </ul>
+    </div>
+  </details>
+</div>
+  </div>
+  
+</div>
+<!-- GAME OVER OVERLAY -->
+<div class="overlay" id="gameOverOverlay" style="display:none">
+  <div class="menu" style="text-align:center; padding:20px;">
+
+    <!-- Judul -->
+    <h2 style="font-size:28px; color:#ffdb4d; text-shadow:0 0 8px #ff9800;">
+      🏆 Game Selesai!
+    </h2>
+
+    <!-- Pesan motivasi -->
+    <p id="motivationEnd" style="font-size:15px; margin:6px 0; color:#e6eef6;">
+      Hebat! 🎉
+    </p>
+
+    <!-- Skor -->
+    <p style="font-size:18px; margin:10px 0; color:#fff;">
+      Skor Kamu: <b id="finalScore" style="font-size:22px; color:#4effa1;">0</b>
+    </p>
+
+    <!-- Info tambahan -->
+    <p id="finalInfo" style="font-size:13px; color:#bbb; margin-bottom:15px;">
+      Grid 3×3 • Level Easy • 30 detik
+    </p>
+
+    <!-- Tombol -->
+    <button class="btn" style="margin:5px; padding:10px 18px;" onclick="restartGame()">🔄 Main Lagi</button>
+    <button class="btn ghost" style="margin:5px; padding:10px 18px;" onclick="exitToMenu()">🏠 Kembali ke Menu</button>
+
+  </div>
+</div>
+<script>
+
+const motivationText = document.getElementById("motivationText");
+
+const motivasiList = [
+  "⚡ Fokus! Skor tinggi menantimu!",
+  "🔥 Jangan ragu, langsung hajar tikusnya!",
+  "😎 Kamu pasti bisa lebih cepat kali ini!",
+  "🎯 Targetmu adalah skor sempurna!",
+  "💡 Ingat, kecepatan dan fokus kuncinya!",
+  "🚀 Level baru, semangat baru!"
+];
+
+function tampilkanMotivasi() {
+  const randomIndex = Math.floor(Math.random() * motivasiList.length);
+  motivationText.textContent = motivasiList[randomIndex];
+}
+
+// ganti setiap kali menu dibuka
+window.addEventListener("load", tampilkanMotivasi);
+
+
+    function sisipkanNama(teks) {
+      let namaUser = localStorage.getItem("anUsrTRXrevolution_Δt*E=mc^2_∫∫f(x,y)dxdx_!0987654321") || "teman";
+
+      // Kapital tiap kata
+      namaUser = namaUser
+        .split(" ")
+        .map(kata => kata.charAt(0).toUpperCase() + kata.slice(1))
+        .join(" ");
+
+      return teks.replace(/#\{namaUser\}/g, namaUser);
+    }
+function updateTeks() {
+      const teks = "🎮 Siap Main #{namaUser}?";
+      document.getElementById("selamatDatang").innerText = sisipkanNama(teks);
+    }
+
+    window.onload = updateTeks;
+       const fileInput = document.getElementById('filePicker');
+  const fileNameSpan = document.getElementById('fileName');
+/* ====== CONFIG ====== */
+const MOLE_IMG = "https://i.imgur.com/9soSAbS.png";
+/* Jika mau pakai gambar lain, ganti link di atas (PNG transparan) */
+
+const LEVELS = {
+  easy:   { name:"Easy",   grid:3, showTime:900,  spawnGap:850,  duration:30 },
+  normal: { name:"Normal", grid:3, showTime:750,  spawnGap:700,  duration:30 },
+  hard:   { name:"Hard",   grid:3, showTime:550,  spawnGap:520,  duration:30 },
+  insane: { name:"Insane", grid:3, showTime:420,  spawnGap:420,  duration:30 }
+};
+
+/* ====== STATE ====== */
+let currentLevelKey = "easy"; // default
+let score = 0;
+let timeLeft = 30;
+let spawnTimer = null;
+let countdownTimer = null;
+let holes = [];
+let lastIndex = -1; // hindari muncul di tempat sama berturut-turut
+let playing = false;
+let motivasiInterval = null;
+
+/* ====== DOM ====== */
+const gridEl   = document.getElementById("grid");
+const timeEl   = document.getElementById("time");
+const scoreEl  = document.getElementById("score");
+const levelEl  = document.getElementById("levelName");
+const toastEl  = document.getElementById("toast");
+const menuOv   = document.getElementById("menuOverlay");
+const levelDropdown = document.getElementById("levelDropdown");
+const startBtn = document.getElementById("startBtn");
+const timeSelect = document.getElementById("timeSelect");
+
+const motivationList = [
+  "Hebat! 🎉",
+  "Keren banget skornya 💪",
+  "Coba lagi untuk skor lebih tinggi 🚀",
+  "Refleksmu mantap! ⚡",
+  "Tikus ketakutan sama kamu 🐭🔥"
+];
+
+// motivasi khusus kalau skor 0
+const zeroScoreMotivation = [
+  "😅 Waduh, belum kena satu pun!",
+  "Jangan sedih, coba lagi ya ✊",
+  "Awal yang sulit, tapi bisa kok!",
+  "Next round pasti lebih baik 🚀"
+];
+
+function gameOver(){
+  playing = false;
+  clearTimers();
+  holes.forEach(h=>{
+    h.classList.remove("show");
+    h._busy = false;
+    if(h._timeout) clearTimeout(h._timeout);
+  });
+
+  // Skor akhir
+  document.getElementById("finalScore").textContent = score;
+
+  // Info level + grid + waktu
+  const size = levelSelect.value + "×" + levelSelect.value;
+  const lvl  = LEVELS[currentLevelKey].name;
+  const dur  = timeSelect.value || 30;
+  document.getElementById("finalInfo").textContent = 
+    "Grid " + size + " • Level " + lvl + " • " + dur + " detik";
+
+  // Pilih motivasi
+  let randMotiv;
+  if (score === 0) {
+    randMotiv = zeroScoreMotivation[Math.floor(Math.random()*zeroScoreMotivation.length)];
+  } else {
+    randMotiv = motivationList[Math.floor(Math.random()*motivationList.length)];
+  }
+  document.getElementById("motivationEnd").textContent = randMotiv;
+
+  // Tampilkan overlay
+  document.getElementById("gameOverOverlay").style.display = "flex";
+}
+
+
+
+
+/* Level selector UI */
+levelDropdown.addEventListener("change", ()=>{
+  currentLevelKey = levelDropdown.value;  // isi dari <option value="">
+});
+
+
+
+/* ====== GAME CORE ====== */
+let customImg = null; 
+const defaultImg = "data:image/svg+xml;utf8," + encodeURIComponent(`
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="#000000">
+  <circle cx="48.4" cy="19.6" fill="#b5b5b5" r="13.6"/>
+  <circle cx="48.3" cy="21.3" fill="#ffc5d3" r="10.1"/>
+  <circle cx="15.6" cy="19.6" fill="#b5b5b5" r="13.6"/>
+  <circle cx="15.7" cy="21.3" fill="#ffc5d3" r="10.1"/>
+  <path d="M48.5 33.4c-2.2-5-7.5-16-16.5-16s-14.3 11-16.5 16c-1.1 2.6-2.1 5-2.5 8.7c-.6 6.5 7 12 11.1 12c2 0 4.1 3.9 7.9 3.9c3.8 0 5.9-3.9 7.9-3.9c4.1 0 11.7-5.6 11.1-12c-.4-3.7-1.4-6.2-2.5-8.7" fill="#c4c5c6"/>
+  <g fill="#ffc5d3">
+    <ellipse cx="44.7" cy="47.8" rx="4.2" ry="2.9"/>
+    <ellipse cx="19.3" cy="47.8" rx="4.2" ry="2.9"/>
+  </g>
+  <path d="M35.8 47.8c-.8-.8-3.1-.9-3.8-.9c-.7 0-3 .1-3.8.9c-.5.6-.1 2 1.3 3.2c.9.8 1.8 1 2.5 1s1.6-.2 2.5-1c1.4-1.2 1.8-2.6 1.3-3.2" fill="#3e4347"/>
+  <ellipse cx="23.1" cy="38.5" rx="6" ry="5.9" fill="#ffffff"/>
+  <ellipse cx="23.1" cy="38.5" rx="4.2" ry="4.1" fill="#3e4347"/>
+  <ellipse cx="40.9" cy="38.5" rx="6" ry="5.9" fill="#ffffff"/>
+  <g fill="#3e4347">
+    <ellipse cx="40.9" cy="38.5" rx="4.2" ry="4.1"/>
+    <path d="M30.7 55.1c.1-.4.4-.7.7-.9l.9-.6c.3-.1.7-.2 1.1-.3c.4 0 .8 0 1.1.3c-.4 0-.6.2-.9.3l-.9.4c-.3.1-.6.3-.9.4c-.4.1-.8.2-1.1.4"/>
+  </g>
+</svg>
+`);
+
+const filePicker   = document.getElementById("filePicker");
+
+const previewBox   = document.getElementById("previewBox");
+const previewImg   = document.getElementById("previewImg");
+const previewText = document.getElementById('previewText');
+const removeImgBtn = document.getElementById("removeImgBtn");
+
+// ambil tombol start
+
+
+// --- Saat pilih gambar ---
+filePicker.addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // kunci tombol start sampai gambar muncul
+  startBtn.disabled = true;
+  startBtn.style.opacity = "0.6"; // efek visual biar keliatan terkunci
+
+  fileNameSpan.textContent = file.name;
+  previewBox.style.display = "block";
+  previewImg.style.display = "none";       
+  loadingText.style.display = "block";     
+  previewText.style.display = "none";      
+  removeImgBtn.style.display = "none";     
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const img = new Image();
+    const startLoad = Date.now();
+
+    img.onload = function() {
+      const elapsed = Date.now() - startLoad;
+      const delay = Math.max(0, 1000 - elapsed);
+
+      setTimeout(()=>{
+        loadingText.style.display = "none";  
+        previewImg.style.display = "block";  
+        removeImgBtn.style.display = "inline-block";
+        
+        // Ubah judul jadi "Pukul Gambar"
+        const titleEl = document.querySelector("h1.title");
+        if (titleEl) {
+        titleEl.innerHTML = `<span class="dot"></span> Pukul Gambar`;
+}
+        // cek rasio
+        if (img.width !== img.height || img.width % 5 !== 0) {
+          previewText.style.display = "block";
+        } else {
+          previewText.style.display = "none";
+        }
+
+        customImg = evt.target.result;
+        previewImg.src = customImg;
+        toast("✅ Gambar berhasil dipilih!");
+
+        // ✅ aktifkan tombol start lagi
+        startBtn.disabled = false;
+        startBtn.style.opacity = "1";
+      }, delay);
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// --- Saat hapus gambar ---
+removeImgBtn.addEventListener("click", function() {
+  // kunci tombol start saat proses menghapus
+  startBtn.disabled = true;
+  startBtn.style.opacity = "0.6";
+
+  // sembunyikan gambar + tombol hapus
+  previewImg.style.display = "none";
+  removeImgBtn.style.display = "none";
+  previewText.style.display = "none";
+
+  // tampilkan teks "Menghapus gambar..."
+  loadingText.textContent = "❌ Menghapus gambar...";
+  loadingText.style.display = "block";
+
+  // delay 1 detik sebelum reset ke default
+  setTimeout(()=>{
+    customImg = null;
+    filePicker.value = "";
+    fileNameSpan.textContent = "Belum ada gambar yang dipilih";
+    previewBox.style.display = "none";
+    loadingText.style.display = "none";
+    toast("❌ Gambar dihapus, kembali ke default.");
+
+    // reset judul jadi Pukul Tikus
+    const titleEl = document.querySelector("h1.title");
+    if (titleEl) {
+      titleEl.innerHTML = `<span class="dot"></span> Pukul Tikus`;
+    }
+
+    // ✅ aktifkan kembali tombol start setelah selesai
+    startBtn.disabled = false;
+    startBtn.style.opacity = "1";
+  }, 1000);
+});
+// Saat bikin board
+function setupBoard(size){
+  gridEl.style.setProperty("--size", size);
+  gridEl.innerHTML = "";
+  holes = [];
+  for(let i=0;i<size*size;i++){
+    const hole = document.createElement("div");
+    hole.className = "hole";
+    const img = document.createElement("img");
+    img.src = customImg || defaultImg; // pakai foto custom kalau ada
+    img.alt = "tikus";
+    img.className = "mole";
+    hole.appendChild(img);
+
+    hole.addEventListener("click", ()=> whack(hole));
+    gridEl.appendChild(hole);
+    holes.push(hole);
+  }
+}
+// ambil select grid
+const gridInfoText   = document.getElementById("gridInfoText");
+
+const levelSelect    = document.getElementById("levelSelect");   // dropdown grid
+
+function updateGridInfo(size){
+  const textSize = size + "×" + size;
+  const lvlName  = getLevelName(currentLevelKey);
+  const timeVal  = timeSelect ? timeSelect.value : 30;
+
+  const hudEl = document.getElementById("gridSizeInfo");
+  if (hudEl) hudEl.textContent = textSize;
+
+  if (gridInfoText) {
+    gridInfoText.textContent = 
+      "Grid " + textSize + " • Level " + lvlName + " • " + timeVal + " detik ";
+  }
+}
+
+// listener untuk dropdown
+levelSelect.addEventListener("change", ()=> updateGridInfo(levelSelect.value));
+levelDropdown.addEventListener("change", ()=> updateGridInfo(levelSelect.value));
+timeSelect.addEventListener("change", ()=> updateGridInfo(levelSelect.value));
+
+// juga update pas game dimulai
+// Start Game
+startBtn.addEventListener("click", ()=>{
+  const L = LEVELS[currentLevelKey] || LEVELS.easy;
+  const customGrid = parseInt(levelSelect.value) || L.grid;
+  const customTime = parseInt(timeSelect.value) || L.duration;
+
+  // pakai durasi pilihan user
+  L.duration = customTime;
+  tampilkanMotivasi();
+  updateGridInfo(customGrid);
+  setupBoard(customGrid);
+  startGame(L);
+});
+function startGame(L){
+  // Reset
+  clearTimers();
+  score = 0; scoreEl.textContent = score;
+  timeLeft = L.duration; timeEl.textContent = timeLeft;
+  levelEl.textContent = L.name;
+  playing = true;
+  menuOv.style.display = "none";
+  toast("Game dimulai! 💥");
+
+  // Countdown
+  countdownTimer = setInterval(()=>{
+    timeLeft--; timeEl.textContent = timeLeft;
+    if(timeLeft<=0){ gameOver(); }
+  }, 1000);
+
+  // Spawn loop
+  spawnTimer = setInterval(()=>{
+    showRandomMole(L.showTime);
+  }, L.spawnGap);
+
+  // Kick first mole instantly
+  showRandomMole(L.showTime);
+}
+
+function showRandomMole(visibleMs){
+  if(!playing) return;
+  if(holes.length===0) return;
+  // pick different hole than last time
+  let idx = Math.floor(Math.random()*holes.length);
+  if (holes.length>1){
+    while(idx===lastIndex){ idx = Math.floor(Math.random()*holes.length); }
+  }
+  lastIndex = idx;
+
+  const hole = holes[idx];
+  if(hole._busy) return; // avoid stacking
+  hole._busy = true;
+  hole._hit = false;
+  hole.classList.add("show");
+  const t = setTimeout(()=>{
+    hole.classList.remove("show");
+    hole._busy = false;
+  }, visibleMs);
+  hole._timeout = t;
+}
+
+function whack(hole){
+  if(!playing) return;
+  if(!hole.classList.contains("show")) return;
+  if(hole._hit) return; // already counted
+  hole._hit = true;
+  score++; scoreEl.textContent = score;
+  // quick feedback
+  hole.style.outline = "2px solid var(--good)";
+  setTimeout(()=> hole.style.outline = "", 120);
+}
+
+
+
+function clearTimers(){
+  if(spawnTimer){ clearInterval(spawnTimer); spawnTimer=null; }
+  if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; }
+}
+
+function toast(msg){
+  toastEl.textContent = msg;
+}
+
+/* Auto open menu on load */
+window.addEventListener("load", ()=>{
+  menuOv.style.display = "flex";
+  setupBoard(LEVELS.easy.grid);
+});
+// Restart Game
+function restartGame(){
+  document.getElementById("gameOverOverlay").style.display = "none";
+  const L = LEVELS[currentLevelKey] || LEVELS.easy;
+  const customGrid = parseInt(levelSelect.value) || L.grid;
+  const customTime = parseInt(timeSelect.value) || L.duration;
+
+  // pakai durasi pilihan user
+  L.duration = customTime;
+
+  updateGridInfo(customGrid);
+  setupBoard(customGrid);
+  startGame(L);
+}
+timeSelect.addEventListener("change", ()=>{
+  const customGrid = parseInt(levelSelect.value) || 3;
+  updateGridInfo(customGrid);
+});
+function getLevelName(key) {
+  return (LEVELS[key] && LEVELS[key].name) ? LEVELS[key].name : key;
+}
+
+// Hentikan motivasi auto-scroll kalau keluar menu
+function exitToMenu(){
+  // hentikan status main
+  playing = false;
+
+  // hentikan semua timer
+  clearTimers();
+
+  // pastikan semua tikus disembunyikan
+  holes.forEach(h=>{
+    h.classList.remove("show");
+    h._busy = false;
+    if(h._timeout) clearTimeout(h._timeout);
+  });
+
+  // tutup overlay Game Over, buka menu
+  document.getElementById("gameOverOverlay").style.display = "none";
+  menuOv.style.display = "flex";
+
+  // stop interval motivasi kalau ada
+  if(motivasiInterval) {
+    clearInterval(motivasiInterval);
+    motivasiInterval = null;
+  }
+}
+
+</script>
+</body>
+</html>
+
+
+<!-- © 2025 TRXrevolution || Pukul Tikus -->

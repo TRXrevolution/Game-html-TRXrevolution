@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Teks Berjalan</title>
+  <style>
+    body {
+      margin: 0;
+      padding-top: 1px; /* beri jarak dari teks ke isi halaman */
+      font-family: 'Arial', sans-serif;
+    }
+
+    .marquee {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      z-index: 9999;
+      padding: 50px 0;
+    }
+
+    .marquee span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: marquee 12s linear infinite;
+      font-size: 18px;
+      color: red;
+      font-weight: bold;
+    }
+
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="marquee">
+  <span>SEMANGAT MENGERJAKAN, OJO NYERAH SELAGI IJEK UREP</span>
+</div>
+
+<!-- Konten lainnya bisa di bawah sini -->
+
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kuis Penyemangat!</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #f1f5f9;
+    }
+    .quiz-container {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      width: 90%;
+      max-width: 500px;
+    }
+    .semangat {
+      font-size: 16px;
+      color: #facc15;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .question {
+      font-size: 20px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .options {
+      text-align: left;
+    }
+    .options label {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      background: #334155;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .options input[type="radio"] {
+      margin-right: 10px;
+    }
+    .options input[type="radio"]:checked + span {
+      background: #0ea5e9;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+    #startBtn, #submitBtn, #restartBtn {
+      background-color: #0ea5e9;
+      color: white;
+      padding: 10px 25px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 20px auto 0;
+      display: block;
+    }
+    #timer {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #94a3b8;
+      text-align: center;
+    }
+    #score {
+      font-size: 20px;
+      color: #38bdf8;
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <div id="semangat" class="semangat">💡 Semangat! Jawab sebaik mungkin ya 💪</div>
+    <div id="timer">Waktu: 0 detik</div>
+    <div id="quiz" style="display: none;">
+      <div class="question" id="question"></div>
+      <div class="options" id="options"></div>
+      <button id="submitBtn">KIRIM JAWABAN</button>
+    </div>
+    <button id="startBtn">Mulai Kuis 🔥</button>
+    <div id="score"></div>
+    <button id="restartBtn" style="display: none;">Ulangi 💪</button>
+  </div>
+
+  <script>
+    const questions = [
+  {
+    question: "1. Planet terbesar di tata surya?",
+    options: ["a. Jupiter", "b. Mars", "c. Bumi", "d. Saturnus"],
+    answer: "a. Jupiter"
+  },
+  {
+    question: "2. Hasil dari 12 × 3 = ?",
+    options: ["a. 36", "b. 32", "c. 40", "d. 30"],
+    answer: "a. 36"
+  },
+  {
+    question: "3. Apa satuan utama dari massa?",
+    options: ["a. Liter", "b. Meter", "c. Kilogram", "d. Watt"],
+    answer: "c. Kilogram"
+  },
+  {
+    question: "4. Siapa penemu bola lampu?",
+    options: ["a. Isaac Newton", "b. Thomas Edison", "c. Einstein", "d. Galileo"],
+    answer: "b. Thomas Edison"
+  },
+  {
+    question: "5. Bilangan prima terkecil?",
+    options: ["a. 1", "b. 3", "c. 2", "d. 0"],
+    answer: "c. 2"
+  },
+  {
+    question: "6. Ibukota negara Jepang?",
+    options: ["a. Tokyo", "b. Osaka", "c. Beijing", "d. Seoul"],
+    answer: "a. Tokyo"
+  },
+  {
+    question: "7. Bentuk bumi sebenarnya adalah?",
+    options: ["a. Bulat sempurna", "b. Datar", "c. Elips", "d. Kotak"],
+    answer: "c. Elips"
+  },
+  {
+    question: "8. Warna campuran merah dan kuning menghasilkan?",
+    options: ["a. Oranye", "b. Hijau", "c. Ungu", "d. Pink"],
+    answer: "a. Oranye"
+  },
+  {
+    question: "9. Alat ukur suhu adalah?",
+    options: ["a. Penggaris", "b. Timbangan", "c. Termometer", "d. Stopwatch"],
+    answer: "c. Termometer"
+  },
+  {
+    question: "10. Negara dengan populasi terbanyak di dunia?",
+    options: ["a. Amerika", "b. India", "c. Indonesia", "d. China"],
+    answer: "d. China"
+  },
+  {
+    question: "11. Hewan tercepat di darat?",
+    options: ["a. Singa", "b. Kuda", "c. Cheetah", "d. Zebra"],
+    answer: "c. Cheetah"
+  },
+  {
+    question: "12. Rumus luas lingkaran?",
+    options: ["a. π × r²", "b. 2πr", "c. s × s", "d. panjang × lebar"],
+    answer: "a. π × r²"
+  },
+  {
+    question: "13. Siapa yang menulis 'Harry Potter'?",
+    options: ["a. J.K. Rowling", "b. Tolkien", "c. Agatha Christie", "d. Stephen King"],
+    answer: "a. J.K. Rowling"
+  },
+  {
+    question: "14. Gunung tertinggi di dunia?",
+    options: ["a. Kilimanjaro", "b. Everest", "c. Fuji", "d. Elbrus"],
+    answer: "b. Everest"
+  },
+  {
+    question: "15. Simbol unsur air dalam kimia?",
+    options: ["a. H2O", "b. O2", "c. CO2", "d. N2"],
+    answer: "a. H2O"
+  },
+  {
+    question: "16. Tahun kemerdekaan Indonesia?",
+    options: ["a. 1945", "b. 1950", "c. 1930", "d. 1965"],
+    answer: "a. 1945"
+  },
+  {
+    question: "17. Bahasa pemrograman web dasar?",
+    options: ["a. Python", "b. Java", "c. HTML", "d. C++"],
+    answer: "c. HTML"
+  },
+  {
+    question: "18. Bagian tumbuhan tempat fotosintesis?",
+    options: ["a. Akar", "b. Batang", "c. Daun", "d. Bunga"],
+    answer: "c. Daun"
+  },
+  {
+    question: "19. Nilai π (pi) dibulatkan adalah?",
+    options: ["a. 2.14", "b. 3.14", "c. 4.13", "d. 3.41"],
+    answer: "b. 3.14"
+  },
+  {
+    question: "20. Warna pelangi yang paling ujung?",
+    options: ["a. Merah", "b. Ungu", "c. Hijau", "d. Biru"],
+    answer: "a. Merah"
+  },
+  {
+    question: "21. Hewan pemakan daging disebut?",
+    options: ["a. Omnivora", "b. Herbivora", "c. Karnivora", "d. Detritivora"],
+    answer: "c. Karnivora"
+  },
+  {
+    question: "22. Benua terbesar di dunia?",
+    options: ["a. Afrika", "b. Asia", "c. Eropa", "d. Amerika"],
+    answer: "b. Asia"
+  },
+  {
+    question: "23. Apa nama ibu kota Australia?",
+    options: ["a. Sydney", "b. Melbourne", "c. Canberra", "d. Brisbane"],
+    answer: "c. Canberra"
+  },
+  {
+    question: "24. Lagu kebangsaan Indonesia?",
+    options: ["a. Garuda Pancasila", "b. Indonesia Raya", "c. Tanah Airku", "d. Hari Merdeka"],
+    answer: "b. Indonesia Raya"
+  },
+  {
+    question: "25. Bagian komputer untuk menampilkan gambar?",
+    options: ["a. Speaker", "b. Keyboard", "c. Monitor", "d. Mouse"],
+    answer: "c. Monitor"
+  },
+  {
+    question: "26. Logam yang ringan dan tidak berkarat?",
+    options: ["a. Besi", "b. Aluminium", "c. Tembaga", "d. Timah"],
+    answer: "b. Aluminium"
+  },
+  {
+    question: "27. Waktu yang dibutuhkan bumi mengelilingi matahari?",
+    options: ["a. 30 hari", "b. 12 jam", "c. 365 hari", "d. 7 hari"],
+    answer: "c. 365 hari"
+  },
+  {
+    question: "28. Apa bentuk energi dari cahaya matahari?",
+    options: ["a. Panas", "b. Kimia", "c. Listrik", "d. Mekanik"],
+    answer: "a. Panas"
+  },
+  {
+    question: "29. Organ manusia untuk memompa darah?",
+    options: ["a. Otak", "b. Paru-paru", "c. Hati", "d. Jantung"],
+    answer: "d. Jantung"
+  },
+  {
+    question: "30. Negara kepulauan terbesar di dunia?",
+    options: ["a. Indonesia", "b. Filipina", "c. Jepang", "d. Madagaskar"],
+    answer: "a. Indonesia"
+  }
+];
+    let current = 0;
+    let score = 0;
+    let timer = 0;
+    let interval;
+
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const quiz = document.getElementById("quiz");
+    const questionEl = document.getElementById("question");
+    const optionsEl = document.getElementById("options");
+    const timerEl = document.getElementById("timer");
+    const scoreEl = document.getElementById("score");
+    const submitBtn = document.getElementById("submitBtn");
+    const semangatEl = document.getElementById("semangat");
+
+    startBtn.onclick = startQuiz;
+    restartBtn.onclick = () => {
+  current = 0;
+  score = 0;
+  timer = 0;
+  scoreEl.innerHTML = "";
+  semangatEl.textContent = "💡 Semangat! Jawab sebaik mungkin ya 💪";
+  quiz.style.display = "block";
+  restartBtn.style.display = "none";
+  startBtn.style.display = "none";
+  interval = setInterval(() => {
+    timer++;
+    timerEl.textContent = `Waktu: ${timer} detik`;
+  }, 1000);
+  showQuestion();
+};
+    submitBtn.onclick = submitAnswer;
+
+    function startQuiz() {
+      startBtn.style.display = "none";
+      quiz.style.display = "block";
+      interval = setInterval(() => {
+        timer++;
+        timerEl.textContent = `Waktu: ${timer} detik`;
+      }, 1000);
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const q = questions[current];
+      questionEl.textContent = q.question;
+      optionsEl.innerHTML = "";
+
+      q.options.forEach((opt, i) => {
+        const id = `opt${i}`;
+        optionsEl.innerHTML += `
+          <label>
+            <input type="radio" name="option" value="${opt}" id="${id}">
+            <span>${opt}</span>
+          </label>
+        `;
+      });
+    }
+
+    function submitAnswer() {
+      const selected = document.querySelector('input[name="option"]:checked');
+      if (!selected) {
+        alert("Pilih salah satu jawaban dulu ya!");
+        return;
+      }
+
+      if (selected.value === questions[current].answer) {
+        score++;
+        semangatEl.textContent = "Ojo nyerah sek, selesai ne nganti rampung nek iso";
+      } else {
+        semangatEl.textContent = "Ojo nyerah sek, selesai ne nganti rampung nek iso";
+      }
+
+      current++;
+
+      setTimeout(() => {
+        if (current < questions.length) {
+          showQuestion();
+        } else {
+          endQuiz();
+        }
+      }, 10);
+    }
+
+    function endQuiz() {
+      clearInterval(interval);
+      quiz.style.display = "none";
+      semangatEl.textContent = "🎉 Kuis selesai! Terima kasih sudah berjuang!";
+      scoreEl.innerHTML = `
+        Skor Kamu: <strong>${score}</strong> dari ${questions.length} soal<br>
+        Total waktu: <strong>${timer}</strong> detik<br><br>
+        ${score === questions.length ? "Luar biasa! Semua benar! 🔥" : "Keren! Kamu sudah mencoba yang terbaik 😊"}
+      `;
+      restartBtn.style.display = "block";
+    }
+  </script>
+</body>
+</html>
+

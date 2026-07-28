@@ -1,0 +1,489 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Catch The Falling Object</title>
+  <style>
+    :root{
+      --bg:#0b0f1a; --card:#0f1724; --neon:#00e5ff; --accent:#ff4d6d; --glass: rgba(255,255,255,0.04);
+      --font: 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:var(--font); background:linear-gradient(180deg,#05060a 0%, #091226 100%); color:#e6f7ff; -webkit-font-smoothing:antialiased}.container{max-width:900px; margin:30px auto; padding:20px}
+h1{margin:0 0 12px; font-size:22px; letter-spacing:0.6px}
+
+/* Hilangkan efek highlight saat klik di mobile & desktop */
+.fall, 
+.fall:focus, 
+.fall:active {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Bonus: supaya gambar gak bisa di-drag atau di-sorot */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Menu */
+.menu{background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,0.6); border:1px solid rgba(0,229,255,0.06)}
+.row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+.btn{background:transparent; border:2px solid rgba(255,255,255,0.06); padding:8px 14px; border-radius:10px; cursor:pointer; color:var(--neon); font-weight:600}
+.btn.ghost{border-style:dashed}
+.btn.primary{background:linear-gradient(90deg,var(--neon),var(--accent)); color:#021220; border:none}
+
+.choice{padding:10px; border-radius:8px; background:var(--glass); border:1px solid rgba(255,255,255,0.02)}
+.choice button{margin-right:8px}
+
+/* Game area */
+.game-wrap{
+margin-top:18px;
+ display:grid; 
+ grid-template-columns:1fr 260px;
+  gap:18px
+  }
+.stage{position:relative;
+ overflow:hidden;  
+ background:linear-gradient(180deg,#06111a,#071526);  
+ border-radius:12px;
+  min-height:520px; 
+  border:1px solid rgba(0,229,255,0.04); 
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center
+  }
+.stage .grid{
+position:absolute;
+ inset:0;
+ background-image:linear-gradient(0deg, rgba(0,229,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+ background-size:90px 90px, 90px 90px; opacity:0.12
+ }
+
+/* HUD */
+.hud{padding:12px; display:flex; gap:10px; align-items:center; width:100%; justify-content:space-between}
+.panel{background:rgba(255,255,255,0.02); padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.02); min-width:110px; text-align:center}
+.panel .big{font-size:20px; font-weight:700}
+.panel small{display:block; opacity:0.7}
+
+.sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); padding:14px; border-radius:12px}
+.objects-list{display:flex; gap:10px; flex-direction:column}
+.obj-row{display:flex; gap:10px; align-items:center}
+.obj-row img{width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.03)}
+
+/* falling objects */
+.fall{position:absolute; width:64px; height:64px; user-select:none; cursor:pointer; transform:translate(-50%,-50%); transition:transform 0.08s linear}
+.bad{filter:hue-rotate(200deg) saturate(0.8)}
+
+/* footer */
+.bottom{margin-top:10px; text-align:center}
+.menu-text{margin-top:8px; color:rgba(230,247,255,0.78)}
+
+/* small */
+@media (max-width:880px){.game-wrap{grid-template-columns:1fr} .sidebar{order:2}}
+
+.page { display:none; animation: fadeIn 0.4s ease forwards; }
+.page.active { display:block; }
+@keyframes fadeIn {
+  from { opacity:0; transform: translateY(10px); }
+  to { opacity:1; transform: translateY(0); }
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(4px);
+}
+.modal.active {
+  display: flex;
+  animation: fadeIn 0.3s ease forwards;
+}
+.modal-content {
+  background: linear-gradient(135deg, rgba(10,20,35,0.95), rgba(12,25,50,0.95));
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 14px;
+  box-shadow: 0 0 40px rgba(0,229,255,0.2);
+  padding: 24px 30px;
+  text-align: center;
+  color: var(--neon);
+}
+.modal-content h2 {
+  margin: 0 0 10px;
+  color: var(--accent);
+}
+.modal-content p {
+  font-size: 15px;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ===== MENU PAGE ===== -->
+    <section id="pageMenu" class="page active">
+      <h1>Catch The Falling Object</h1>
+      <div class="menu">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div>
+            <p id="selamatdatangUser">Siap main #{namaUser}?</p>
+            <div style="font-size:13px; opacity:0.85; margin-top:6px">Pilih 'Iya' atau 'Tidak' — teks di bawah akan berubah sesuai pilihan.</div>
+          </div>
+          <div>
+            <button id="menuStart" class="btn primary">Start</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;" class="row">
+          <div class="choice">
+            <div style="margin-bottom:8px">Jawaban:</div>
+            <button id="ansYes" class="btn">Iya</button>
+            <button id="ansNo" class="btn ghost">Tidak</button>
+            <div id="ansText" style="margin-top:10px; font-size:14px; opacity:0.9">Belum memilih.</div>
+          </div><br><br>
+
+          <div class="choice">
+            <div style="margin-bottom:8px">Mau pakai waktu? (1 menit)</div>
+            <button id="timeYes" class="btn">Iya</button>
+            <button id="timeNo" class="btn ghost">Tidak</button>
+            <div id="timeText" style="margin-top:10px; font-size:14px; opacity:0.9">Belum memilih waktu.</div>
+          </div>
+        </div>
+
+        <div class="menu-text">Klik <b>Start</b> untuk memulai permainan.</div>
+      </div>
+       <div class="sidebar">
+          <div style="font-weight:700; margin-bottom:10px">Objek</div>
+       <div class="objects-list">
+  <div class="obj-row"><img src="img/apel.png" alt="apel"><div>Apel (+10)</div></div>
+  <div class="obj-row"><img src="img/gedang.png" alt="pisang"><div>Pisang (+8)</div></div>
+  <div class="obj-row"><img src="img/stroberi.png" alt="stroberi"><div>Stroberi (+12)</div></div>
+  <div class="obj-row"><img src="img/pisau.png" alt="pisau" class="bad"><div>Pisau (hindari)</div></div>
+</div>
+ <div class="obj-row"><img src="img/bola.png" alt="bal" class="bad"><div>Bola (hindari)</div></div>
+</div>
+         <div class="instructions" style="margin-top:15px; font-size:14px; color:var(--muted); line-height:1.6; text-align:left;">
+  <details>
+    <summary style="
+      cursor:pointer;
+      font-weight:600;
+      color:#e6eef6;
+      font-size:15px;
+      outline:none;
+      -webkit-tap-highlight-color:transparent;
+    ">
+      Apa Itu Catch The Falling Object?
+    </summary>
+
+    <div style="
+      margin-top:10px;
+      padding-left:12px;
+      max-height:140px;  
+      overflow-y:auto;  
+      text-align:left;
+    ">
+      <p>
+        <b>Catch The Falling Object</b> adalah permainan refleks cepat di mana kamu harus 
+        <b>menangkap buah yang jatuh</b> dengan mengkliknya sebelum menyentuh tanah 🍎🍌.
+        Hindari objek berbahaya seperti pisau atau benda tajam ❌.
+      </p>
+
+      <p><b>Cara bermain:</b></p>
+      <ol style="margin-top:4px; margin-bottom:8px;">
+        <li>Pilih apakah ingin bermain <b>dengan waktu</b> (1 menit) atau tanpa batas.</li>
+        <li>Klik tombol <b>Start</b> untuk memulai permainan.</li>
+        <li>Objek akan jatuh secara acak — klik buah untuk mendapat skor.</li>
+        <li>Jangan klik objek tajam, karena akan mengurangi nyawa ❤️.</li>
+        <li>Kumpulkan skor tertinggi sebelum waktu habis atau nyawa habis ⏱️.</li>
+      </ol>
+
+      <p><b>Fitur permainan:</b></p>
+      <ul style="margin-top:4px; margin-bottom:8px;">
+        <li>🎮 Gameplay refleks cepat & adiktif.</li>
+        <li>🍓 Berbagai objek jatuh: apel, pisang, stroberi, dan pisau.</li>
+        <li>⏳ Mode waktu (1 menit) atau bebas tanpa batas.</li>
+        <li>⚡ Kecepatan jatuh meningkat seiring waktu.</li>
+        <li>🌀 Objek berputar pelan saat jatuh untuk efek realistis.</li>
+        <li>🏆 Tampilan skor akhir setelah permainan selesai.</li>
+      </ul>
+    </div>
+  </details>
+</div>
+        </div>
+        
+      </div>
+    </section>
+
+    <!-- ===== GAME PAGE ===== -->
+    <section id="pageGame" class="page">
+      <h1>Game dimulai!</h1>
+      <div class="game-wrap">
+        <div class="stage" id="stage">
+          <div class="grid"></div>
+          <div id="hud" class="hud" style="position:relative; z-index:2; width:100%;">
+            <div class="panel"><div class="big" id="score">0</div><small>Score</small></div>
+            <div class="panel"><div class="big" id="lives">3</div><small>Lives</small></div>
+            <div class="panel"><div class="big" id="timer">--:--</div><small>Timer</small></div>
+          </div>
+        </div>
+
+        <button id="backToMenu" class="btn ghost" style="margin-top:10px;">Kembali ke Menu</button><br>
+    </section>
+
+  </div>
+  <!-- Modal Game Over -->
+<div id="gameOverModal" class="modal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Game Over!</h2>
+    <p id="modalScore">Skor kamu: 0</p>
+    <button id="modalClose" class="btn primary">Kembali ke Menu</button>
+  </div>
+</div>
+<script>
+    function updateTeks() {
+  let anamaUserTRX = localStorage.getItem("anUsrTRXrevolution_Δt*E=mc^2_∫∫f(x,y)dxdx_!0987654321") || "teman";
+  anamaUserTRX = anamaUserTRX
+    .split(" ")
+    .map(kata => kata.charAt(0).toUpperCase() + kata.slice(1).toLowerCase())
+    .join(" ");
+  const teks = `Siap main ${anamaUserTRX}?`;
+  document.getElementById("selamatdatangUser").innerText = teks;
+}
+
+window.onload = updateTeks;
+       
+  const fileNameSpan = document.getElementById('fileName');
+
+// ====== Settings & assets ======
+const STAGE = document.getElementById('stage');
+const SCORE = document.getElementById('score');
+const LIVES = document.getElementById('lives');
+const TIMER = document.getElementById('timer');
+const menuStart = document.getElementById('menuStart');
+const backToMenu = document.getElementById('backToMenu');
+const ansYes = document.getElementById('ansYes');
+const ansNo = document.getElementById('ansNo');
+const ansText = document.getElementById('ansText');
+const timeYes = document.getElementById('timeYes');
+const timeNo = document.getElementById('timeNo');
+const timeText = document.getElementById('timeText');
+
+let useTimer = false;
+let gameInterval = null;
+let spawnInterval = null;
+let objects = [];
+let score = 0;
+let lives = 3;
+let elapsed = 0; // seconds since start
+let gameRunning = false;
+let remainSeconds = 60; // for the 1-minute mode
+
+// sample object pool
+const POOL = [
+  {type:'good', score:10, src:'img/apel.png'},
+  {type:'good', score:8, src:'img/gedang.png'},
+  {type:'good', score:12, src:'img/stroberi.png'},
+  {type:'bad', score:0, src:'img/bola.png'} , 
+  {type:'bad', score:0, src:'img/pisau.png'} 
+];
+// ====== Menu logic ======
+ansYes.addEventListener('click', ()=>{ansText.textContent='Kamu memilih: Iya — Siap bermain!'; ansYes.classList.add('primary'); ansNo.classList.remove('primary');});
+ansNo.addEventListener('click', ()=>{ansText.textContent='Kamu memilih: Tidak — Kamu bisa lihat-lihat dulu.'; ansNo.classList.add('primary'); ansYes.classList.remove('primary');});
+
+timeYes.addEventListener('click', ()=>{useTimer=true; timeText.textContent='Mode: 1 menit aktif.'; timeYes.classList.add('primary'); timeNo.classList.remove('primary');});
+timeNo.addEventListener('click', ()=>{useTimer=false; timeText.textContent='Mode: Tanpa batas waktu.'; timeNo.classList.add('primary'); timeYes.classList.remove('primary');});
+
+menuStart.addEventListener('click', ()=>startGame());
+backToMenu.addEventListener('click', ()=>stopAndBack());
+
+function resetGame(){
+  score=0; lives=3; elapsed=0; remainSeconds=60; updateHUD(); clearStage();}
+
+function updateHUD(){ SCORE.textContent = score; LIVES.textContent = lives; TIMER.textContent = useTimer ? formatTime(remainSeconds) : formatTime('--'); }
+
+function formatTime(s){ if(s==='--') return '--:--'; const mm = Math.floor(s/60).toString().padStart(2,'0'); const ss = Math.floor(s%60).toString().padStart(2,'0'); return `${mm}:${ss}`; }
+const pageMenu = document.getElementById('pageMenu');
+const pageGame = document.getElementById('pageGame');
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  if (page === 'menu') pageMenu.classList.add('active');
+  if (page === 'game') pageGame.classList.add('active');
+}
+function startGame(){
+  if(gameRunning) return;
+  resetGame();
+  gameRunning=true;
+  showPage('game');
+  spawnInterval = setInterval(spawnObject, 900);
+  gameInterval = setInterval(gameTick, 1000/60);
+}
+
+function stopAndBack(){
+  gameRunning=false;
+  clearInterval(spawnInterval);
+  clearInterval(gameInterval);
+  clearStage();
+  showPage('menu');
+}
+function menuVisible(show){ document.getElementById('menu').style.display = show ? 'block' : 'none'; }
+
+function clearStage(){ // remove all falling objects
+  objects.forEach(o=>{ if(o.el && o.el.parentNode) o.el.parentNode.removeChild(o.el); }); objects = []; }
+
+function spawnObject() {
+  // spawn more often as time goes
+  const stageW = STAGE.clientWidth;
+  const x = Math.random() * (stageW - 80) + 40;
+
+  // tentukan jenis objek
+  const roll = Math.random();
+  let choice;
+  if (roll < 0.7) choice = POOL[Math.floor(Math.random() * 3)]; // good
+  else choice = POOL[3]; // bad
+
+  const el = document.createElement('img');
+  el.src = choice.src;
+  el.className = 'fall' + (choice.type === 'bad' ? ' bad' : '');
+  el.style.left = x + 'px';
+  el.style.top = '-40px';
+  el.draggable = false;
+  el.style.width = '64px';
+  el.style.height = '64px';
+  el.style.zIndex = 1;
+
+  // base speed (per detik)
+  const speedBase = 50 + Math.min(elapsed * 6, 300);
+
+  // objek data
+  const obj = {
+    el,
+    x,
+    y: -40,
+    vy: speedBase / 60 + Math.random() * 1.2,
+    vx: 0,
+    type: choice.type,
+    score: choice.score,
+    rot: 0,
+    rotSpeed: (Math.random() * 2 - 1) * 2 // -2 sampai +2 derajat/frame
+  };
+
+  // klik behavior
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!gameRunning) return;
+
+    if (obj.type === 'good') {
+      score += obj.score;
+      SCORE.textContent = score;
+      popEffect(el, '+' + obj.score);
+    } else {
+      lives -= 1;
+      LIVES.textContent = lives;
+      flashStage();
+      popEffect(el, '-1 life');
+      if (lives <= 0) endGame();
+    }
+
+    removeObject(obj);
+  });
+
+  STAGE.appendChild(el);
+  objects.push(obj);
+}
+
+function popEffect(el, text){
+  const badge = document.createElement('div');
+  badge.textContent = text; badge.style.position='absolute'; badge.style.left = (parseFloat(el.style.left)||0)+'px'; badge.style.top = (parseFloat(el.style.top)||0)+'px';
+  badge.style.transform = 'translate(-50%,-50%)'; badge.style.padding='6px 8px'; badge.style.borderRadius='8px'; badge.style.background='rgba(0,0,0,0.6)'; badge.style.border='1px solid rgba(255,255,255,0.06)'; badge.style.zIndex=50; badge.style.fontSize='13px';
+  STAGE.appendChild(badge);
+  setTimeout(()=>{ badge.style.transition='all 400ms ease'; badge.style.opacity=0; badge.style.transform='translate(-50%,-120%)'; }, 20);
+  setTimeout(()=>{ if(badge.parentNode) badge.parentNode.removeChild(badge); }, 700);
+}
+
+function flashStage(){ STAGE.style.boxShadow='0 0 40px rgba(255,77,109,0.18)'; setTimeout(()=>STAGE.style.boxShadow='none',200); }
+
+function removeObject(obj){ if(!obj) return; try{ if(obj.el && obj.el.parentNode) obj.el.parentNode.removeChild(obj.el); }catch(e){} objects = objects.filter(o=>o !== obj);
+}
+
+function gameTick() {
+  // dipanggil 60 fps
+  const dt = 1/60;
+  elapsed += dt;
+
+  // gerakkan objek
+  const stageH = STAGE.clientHeight;
+  objects.forEach(obj => {
+    // tambah kecepatan jatuh sedikit demi sedikit biar makin lama makin cepat
+    obj.y += obj.vy;
+    obj.vy += 0.002 * elapsed; // percepatan
+    obj.x += obj.vx;
+    if (obj.el) {
+  obj.rot += obj.rotSpeed; // tambah rotasi
+  obj.el.style.top = obj.y + 'px';
+  obj.el.style.left = obj.x + 'px';
+  obj.el.style.transform = `translate(-50%, -50%) rotate(${obj.rot}deg)`; 
+}
+  });
+
+  // hapus objek kalau lewat bawah
+  objects.slice().forEach(obj => {
+    if (obj.y > stageH + 60) {
+      if (obj.type === 'good') {
+        lives -= 1; LIVES.textContent = lives; flashStage();
+        if (lives <= 0) endGame();
+      }
+      removeObject(obj);
+    }
+  });
+
+  // timer
+  if (useTimer && gameRunning) {
+    elapsed = Math.floor(elapsed*100)/100;
+    if (Math.floor(elapsed) !== Math.floor(elapsed - dt)) {
+      remainSeconds -= 1;
+      if (remainSeconds <= 0) endGame(true);
+    }
+    TIMER.textContent = formatTime(remainSeconds);
+  } else {
+    TIMER.textContent = '--:--';
+  }
+}
+
+function endGame(timeout = false) {
+  gameRunning = false;
+  clearInterval(spawnInterval);
+  clearInterval(gameInterval);
+  if (typeof clearStage === 'function') clearStage();
+
+  setTimeout(() => {
+    const modal = document.getElementById('gameOverModal');
+    const title = document.getElementById('modalTitle');
+    const scoreText = document.getElementById('modalScore');
+
+    title.textContent = timeout ? 'Waktu Habis!' : 'Game Over!';
+    scoreText.textContent = `Skor kamu: ${score}`;
+    modal.classList.add('active');
+
+    // tombol close modal
+    document.getElementById('modalClose').onclick = () => {
+      modal.classList.remove('active');
+      showPage('menu');
+    };
+  }, 100);
+}
+// allow clicking stage to do nothing but prevent accidental text selection
+STAGE.addEventListener('click', ()=>{});
+
+// init default hud
+updateHUD();
+
+</script></body>
+</html>

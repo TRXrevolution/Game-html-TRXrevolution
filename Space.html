@@ -1,0 +1,334 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Space Dodger — Game</title>
+  <style>
+    :root{--bg:#071324;--fg:#dff6ff;--accent:#66e0ff}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--fg);display:flex;align-items:center;justify-content:center}
+    .wrapper{width:100%;max-width:900px;padding:16px;box-sizing:border-box}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    h1{font-size:20px;margin:0}
+    #hud{font-size:14px;opacity:0.95}
+    canvas{display:block;width:100%;height:70vh;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,0.6);background:linear-gradient(180deg,#041021 0%, #071324 60%)}
+    .controls{display:flex;gap:8px;margin-top:10px;align-items:center}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--fg);padding:8px 12px;border-radius:8px;backdrop-filter:blur(4px);cursor:pointer}
+    .big{padding:10px 14px;font-weight:600}
+    .help{font-size:13px;opacity:0.9;margin-top:8px}
+    .footer{margin-top:10px;font-size:12px;opacity:0.8}
+    @media (max-width:600px){canvas{height:55vh}}
+    :root {
+  --analog-size: 130px; /* ubah sesuka kamu */
+}
+
+#analog {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  width: var(--analog-size);
+  height: var(--analog-size);
+  background: rgba(255,255,255,0.05);
+  border-radius: 50%;
+  backdrop-filter: blur(4px);
+  touch-action: none;
+}
+
+#analog-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50px;
+  height: 50px;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  transition: transform 0.1s ease-out;
+}
+#analog-inner {
+  transition: transform 0.05s ease;
+}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>Space Dodger</h1>
+      <div id="hud">Skor: <span id="score">0</span> — Level: <span id="level">1</span></div>
+    </header><canvas id="game" width="900" height="600"></canvas>
+    
+<div id="analog">
+  <div id="analog-inner"></div>
+</div>
+
+<div class="controls">
+  <button id="start" class="big">Mulai / Restart</button>
+  <button id="pause">Jeda</button>
+  <button id="mute">Suara: On</button>
+  <div style="flex:1"></div>
+  <div class="help">Gunakan tombol panah / WASD untuk bergerak. Di layar sentuh, tap kiri/kanan untuk berpindah.</div>
+</div>
+<div class="footer">Game sederhana: hindari asteroid selama mungkin. Semakin lama, semakin cepat!</div>
+
+  </div><script>
+      
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const levelEl = document.getElementById('level');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const muteBtn = document.getElementById('mute');
+  // ==== ANALOG CONTROL ====
+const analog = document.getElementById('analog');
+const analogInner = document.getElementById('analog-inner');
+
+  let W = canvas.width, H = canvas.height;
+  function resizeCanvas(){
+    // keep internal resolution while canvas style scales
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(rect.width * ratio);
+    canvas.height = Math.floor(rect.height * ratio);
+    W = canvas.width; H = canvas.height;
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // Game state
+  let running = false, paused = false, muted = false;
+  let score = 0, level = 1, spawnTimer = 0, spawnInterval = 90, speedMultiplier = 1;
+  let ship, asteroids = [], particles = [], keys = {};
+  let analogActive = false;
+let analogCenter = {x:0, y:0};
+let analogPos = {x:0, y:0};
+let lastDir = {x:0, y:0};
+
+  function rand(min, max){ return Math.random()*(max-min)+min }
+
+  function createShip(){
+    return {
+      x: W/2, y: H - 80, w: 34, h: 24, speed: 6, color: '#66e0ff', vx:0
+    };
+  }
+
+  function reset(){
+    score = 0; level = 1; spawnTimer = 0; spawnInterval = 90; speedMultiplier = 1;
+    asteroids = []; particles = []; ship = createShip();
+    running = true; paused = false;
+    scoreEl.textContent = score; levelEl.textContent = level;
+  }
+
+  function spawnAsteroid(){
+    const size = Math.floor(rand(18, 64));
+    const x = rand(size, (canvas.getBoundingClientRect().width) - size);
+    asteroids.push({x, y: -size, r: size, vy: rand(1.2, 2.6) * speedMultiplier, ang: rand(0,Math.PI*2), rv: rand(-0.03,0.03)});
+  }
+
+  function update(){
+    if(!running || paused) return;
+
+    // input
+    if(keys.ArrowLeft || keys.a) ship.x -= ship.speed;
+    if(keys.ArrowRight || keys.d) ship.x += ship.speed;
+    if(keys.ArrowUp || keys.w) ship.y -= ship.speed;
+    if(keys.ArrowDown || keys.s) ship.y += ship.speed;
+
+    // bounds
+    const cw = canvas.getBoundingClientRect().width;
+    ship.x = Math.max(16, Math.min(cw-16, ship.x));
+    ship.y = Math.max(16, Math.min(canvas.getBoundingClientRect().height-16, ship.y));
+
+    // spawn
+    spawnTimer++;
+    if(spawnTimer >= spawnInterval){ spawnAsteroid(); spawnTimer = 0 }
+
+    // update asteroids
+    for(let i = asteroids.length-1; i>=0; i--){
+      const a = asteroids[i];
+      a.y += a.vy;
+      a.ang += a.rv;
+      // off screen
+      if(a.y - a.r > canvas.getBoundingClientRect().height){ asteroids.splice(i,1); score += 1; scoreEl.textContent = score; 
+        if(score % 10 === 0){ level++; levelEl.textContent = level; speedMultiplier += 0.15; spawnInterval = Math.max(30, Math.floor(spawnInterval * 0.92)); }
+      }
+    }
+
+    // collision
+    for(const a of asteroids){
+      const dx = a.x - ship.x;
+      const dy = a.y - ship.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist < a.r + Math.max(ship.w, ship.h)/2 - 2){
+        // explosion
+        running = false;
+        explode(ship.x, ship.y, 40);
+        playSound('boom');
+      }
+    }
+
+    // particles
+    for(let i = particles.length-1;i>=0;i--){
+      const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 1;
+      if(p.life <= 0) particles.splice(i,1);
+    }
+  }
+
+  function explode(x,y,count){
+    for(let i=0;i<count;i++) particles.push({x,y,vx:rand(-4,4),vy:rand(-4,4),life:rand(20,70),size:rand(2,5)})
+  }
+
+  function draw(){
+    // clear
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // background stars
+    drawStars();
+
+ 
+    // ship
+if (ship) drawShip();
+// analog movement
+if (ship) {
+  const moveX = lastDir.x * ship.speed;
+  const moveY = lastDir.y * ship.speed;
+  ship.x += moveX;
+  ship.y += moveY;
+
+  // kalau analog dilepas → arah terakhir perlahan melambat
+  if (!analogActive) {
+    lastDir.x *= 0.92;  // geser angka 0.92 buat atur “lambatnya”
+    lastDir.y *= 0.92;
+    if (Math.abs(lastDir.x) < 0.01) lastDir.x = 0;
+    if (Math.abs(lastDir.y) < 0.01) lastDir.y = 0;
+  }
+}
+    // asteroids
+    for(const a of asteroids) drawAsteroid(a);
+
+    // particles
+    for(const p of particles){
+      ctx.beginPath(); ctx.globalAlpha = Math.max(0, p.life/80); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,200,100,0.95)'; ctx.fill(); ctx.globalAlpha = 1;
+    }
+
+    if(!running){
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = 'white'; ctx.textAlign='center'; ctx.font='28px system-ui';
+      ctx.fillText('Game Over', canvas.getBoundingClientRect().width/2, canvas.getBoundingClientRect().height/2 - 10);
+      ctx.font='16px system-ui'; ctx.fillText('Tekan Mulai untuk coba lagi', canvas.getBoundingClientRect().width/2, canvas.getBoundingClientRect().height/2 + 20);
+    }
+  }
+
+  // simple starfield
+  const stars = Array.from({length: 80}, () => ({x:rand(0,canvas.getBoundingClientRect().width), y:rand(0,canvas.getBoundingClientRect().height), s:rand(0.5,2)}));
+  function drawStars(){
+    const cw = canvas.getBoundingClientRect().width, ch = canvas.getBoundingClientRect().height;
+    for(const s of stars){
+      s.y += 0.3; if(s.y > ch) s.y = 0; ctx.beginPath(); ctx.globalAlpha = 0.9; ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fillStyle = 'white'; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawShip(){
+    const cw = canvas.getBoundingClientRect().width, ch = canvas.getBoundingClientRect().height;
+    const x = ship.x, y = ship.y;
+    ctx.save();
+    ctx.translate(x,y);
+    // body
+    ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(10,10); ctx.lineTo(0,6); ctx.lineTo(-10,10); ctx.closePath(); ctx.fillStyle = '#9ef1ff'; ctx.fill();
+    // cockpit
+    ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fillStyle = '#063e4e'; ctx.fill();
+    ctx.restore();
+  }
+
+  function drawAsteroid(a){
+    ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ang);
+    ctx.beginPath();
+    const points = 8; for(let i=0;i<points;i++){ const ang = (i/points)*Math.PI*2; const rad = a.r * (0.7 + Math.random()*0.6); const px = Math.cos(ang)*rad; const py = Math.sin(ang)*rad; if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+    ctx.closePath(); ctx.fillStyle = '#8b7b66'; ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.stroke(); ctx.restore();
+  }
+
+  function loop(){ update(); draw(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+
+  // input handling
+  window.addEventListener('keydown', e => { keys[e.key] = true; if(e.key === ' '){ e.preventDefault(); if(!running) reset(); } });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // touch controls: tap left/right half of canvas
+  canvas.addEventListener('touchstart', e => {
+    const t = e.touches[0]; const rect = canvas.getBoundingClientRect(); const cx = t.clientX - rect.left;
+    if(cx < rect.width/2) { keys.ArrowLeft = true; setTimeout(()=> keys.ArrowLeft = false, 180); }
+    else { keys.ArrowRight = true; setTimeout(()=> keys.ArrowRight = false, 180); }
+  });
+analog.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const rect = analog.getBoundingClientRect();
+  analogCenter = {x: rect.left + rect.width/2, y: rect.top + rect.height/2};
+  analogActive = true;
+});
+
+analog.addEventListener('touchmove', e => {
+  if(!analogActive) return;
+  const t = e.touches[0];
+  const dx = t.clientX - analogCenter.x;
+const dy = t.clientY - analogCenter.y;
+const rect = analog.getBoundingClientRect();
+const maxDist = rect.width / 2 - analogInner.offsetWidth / 2; // batas radius
+
+// Hitung jarak dan batasi dalam lingkaran
+const dist = Math.min(Math.sqrt(dx*dx + dy*dy), maxDist);
+const angle = Math.atan2(dy, dx);
+const limitX = Math.cos(angle) * dist;
+const limitY = Math.sin(angle) * dist;
+
+// Normalisasi arah (antara -1 sampai 1)
+analogPos.x = limitX / maxDist;
+analogPos.y = limitY / maxDist;
+lastDir = {...analogPos};
+
+// Geser pentolan di dalam lingkaran aja
+analogInner.style.transform = `translate(calc(-50% + ${limitX}px), calc(-50% + ${limitY}px))`;
+
+e.preventDefault();
+}, { passive: false });
+
+analog.addEventListener('touchend', () => {
+  analogActive = false;
+  analogInner.style.transform = 'translate(-50%, -50%)';
+  // analog dilepas → tetap jalan arah terakhir
+});
+
+  startBtn.addEventListener('click', ()=>{ reset(); playSound('start'); });
+  pauseBtn.addEventListener('click', ()=>{ paused = !paused; pauseBtn.textContent = paused ? 'Lanjut' : 'Jeda'; });
+  muteBtn.addEventListener('click', ()=>{ muted = !muted; muteBtn.textContent = muted ? 'Suara: Off' : 'Suara: On'; });
+
+  // tiny audio using WebAudio API
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+  function ensureAudio(){ if(!audioCtx) audioCtx = new AudioContext(); }
+  function playSound(name){ if(muted) return; try{ ensureAudio(); const t = audioCtx.currentTime; if(name==='boom'){ const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(60, t); g.gain.setValueAtTime(0.001, t); g.gain.exponentialRampToValueAtTime(0.2, t+0.01); g.gain.exponentialRampToValueAtTime(0.001, t+0.4); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(t+0.5); }
+      else if(name==='start'){ const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(880,t+0.15); g.gain.setValueAtTime(0.001,t); g.gain.exponentialRampToValueAtTime(0.08,t+0.12); g.gain.exponentialRampToValueAtTime(0.001,t+0.35); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(t+0.4); }
+    }catch(e){/* audio blocked */}}
+
+  // initial draw
+  draw();
+
+  // small usability: keyboard hints
+  const hint = document.createElement('div'); hint.style.position='fixed'; hint.style.left='8px'; hint.style.bottom='8px'; hint.style.color='rgba(255,255,255,0.06)'; hint.style.pointerEvents='none'; hint.textContent = '';
+  document.body.appendChild(hint);
+
+})();
+
+
+
+
+
+
+// Di dalam update() tambahkan gerak pakai arah analog
+
+</script></body>
+</html>

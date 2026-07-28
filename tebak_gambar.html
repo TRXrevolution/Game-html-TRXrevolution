@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tebak Gambar Neon</title>
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: radial-gradient(circle at top, #020024 0%, #090979 50%, #00d4ff 100%);
+    color: #fff;
+    text-align: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  h1 {
+    font-size: 2.5em;
+    color: #0ff;
+    text-shadow: 0 0 15px #0ff;
+    margin-top: 30px;
+  }
+  .page { display: none; transition: opacity 0.5s; }
+  .active { display: block; }
+
+  select, button {
+    margin: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    background: #0ff;
+    color: #000;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  button:hover { transform: scale(1.1); background: #fff; }
+
+  #motivasi { font-style: italic; color: #0ff; margin: 10px 0; }
+
+  #gambar {
+    width: 150px;
+    height: 150px;
+    margin: 20px auto;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #0ff;
+    background: #000;
+  }
+
+  #options button {
+    display: block;
+    width: 60%;
+    margin: 8px auto;
+    background: rgba(255,255,255,0.1);
+    color: #0ff;
+    border: 2px solid #0ff;
+  }
+  #options button.benar { background: #00ff66; color: #000; border-color: #00ff66; }
+  #options button.salah { background: #ff0044; color: #fff; border-color: #ff0044; }
+
+  #timer { margin-top: 10px; font-weight: bold; }
+  #roundText { margin-top: 10px; }
+
+  #result-box {
+    position: absolute;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background: rgba(0,0,0,0.9);
+    backdrop-filter: blur(5px);
+    color: #0ff;
+    text-shadow: 0 0 10px #0ff;
+    transition: 0.5s;
+  }
+  #result-box.show { display: flex; }
+
+  /* alert popup */
+ #alertBox {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 16px;
+  color: #0ff;
+  text-align: center;
+  opacity: 0;
+  transition: all 0.3s ease;
+  background: rgba(0,0,0,0.7);
+  z-index: 999;
+}
+#alertBox.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+  .level-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 10px auto 20px;
+}
+
+.level-buttons button {
+  background: rgba(0, 255, 255, 0.1);
+  border: 2px solid #0ff;
+  color: #0ff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 0 8px #0ff;
+  text-transform: capitalize;
+}
+
+.level-buttons button:hover {
+  transform: scale(1.08);
+  background: rgba(0, 255, 255, 0.25);
+  box-shadow: 0 0 20px #0ff;
+}
+
+.level-buttons button.active {
+  background: #0ff;
+  color: #000;
+  box-shadow: 0 0 25px #0ff, 0 0 50px #00ffffaa;
+  animation: pulse 1.5s infinite alternate;
+}
+
+@keyframes pulse {
+  from { box-shadow: 0 0 20px #0ff; }
+  to { box-shadow: 0 0 40px #00ffff; }
+}
+#gambar-box {
+  width: 350px;
+  height: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background: #111;        /* biar rapi pas loading */
+  border-radius: 20px;
+  box-shadow: 0 0 10px #0005;
+  margin: 15px auto;
+}
+
+#gambar {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: all 0.6s ease;
+  filter: blur(12px) brightness(0.8); /* awalnya blur + agak gelap */
+}
+
+#gambar.clear {
+  filter: blur(0) brightness(1); /* jelas dan cerah */
+  transform: scale(1.02);        /* sedikit zoom-in biar dramatis */
+}
+</style>
+</head>
+<body>
+ 
+<div id="menu" class="page active">
+  <h1>🎮 Tebak Gambar Neon 🎮</h1>
+  <p id="motivasi">Motivasi...</p>
+
+  <div id="level-container">
+    <p>Pilih Level:</p>
+    <div class="level-buttons">
+      <button data-level="pemula">Pemula</button>
+      <button data-level="mudah">Mudah</button>
+      <button data-level="sedang">Sedang</button>
+      <button data-level="sulit">Sulit</button>
+      <button data-level="expert">Expert</button>
+      <button data-level="master">Master</button>
+    </div>
+  </div>
+
+  <div>
+    <label>Mode Waktu <input type="checkbox" id="waktuMode"></label>
+  </div>
+
+  <button id="startBtn">Mulai Game</button>
+</div>
+
+<!-- 🕹️ Halaman Game -->
+<div id="game" class="page">
+      <h1>Game dimulai!</h1> 
+  <div id="roundText"></div>
+
+  <!-- gambar di dalam container supaya gak mengecil -->
+  <div id="gambar-box">
+    <img id="gambar" src="" alt="Gambar tebakanku">
+  </div>
+
+  <div id="options"></div>
+  <div id="timer"></div>
+</div>
+
+<!-- 🎯 Hasil Akhir -->
+<div id="result-box">
+  <h2 id="pesanHasil"></h2>
+  <p id="motivasiHasil"></p>
+  <button id="ulangBtn">🔁 Ulangi</button>
+  <button id="menuBtn">🏠 Menu</button>
+</div>
+
+<!-- ⚠️ Alert Notifikasi -->
+<div id="alertBox"></div>
+<script>
+const menuPage = document.getElementById('menu');
+const gamePage = document.getElementById('game');
+const resultBox = document.getElementById('result-box');
+const motivasiText = document.getElementById('motivasi');
+const motivasiHasil = document.getElementById('motivasiHasil');
+const gambarEl = document.getElementById('gambar');
+const optionsBox = document.getElementById('options');
+const pesanHasil = document.getElementById('pesanHasil');
+const timerEl = document.getElementById('timer');
+const waktuMode = document.getElementById('waktuMode');
+const roundText = document.getElementById('roundText');
+const alertBox = document.getElementById('alertBox');
+
+const motivasiList = [
+  "Teruslah mencoba, kegagalan hanya batu loncatan!",
+  "Kamu bisa lebih baik dari ini!",
+  "Fokus, tenang, dan menangkan!",
+  "Setiap usaha ada hasilnya 💪",
+  "Hebat! Kamu luar biasa!"
+];
+
+const gambarList = [
+  { img: "img/gedang.png", jawab: "Pisang" },
+  { img: "img/mobil.png", jawab: "Mobil" },
+  { img: "img/kucing.png", jawab: "Kucing" },
+  { img: "img/bola.png", jawab: "Bola" },
+  { img: "img/sepeda.png", jawab: "Sepeda" },
+  { img: "img/ikan.png", jawab: "Ikan" },
+  { img: "img/rumah.png", jawab: "Rumah" },
+  { img: "img/pesawat.png", jawab: "Pesawat" },
+  { img: "img/burung.png", jawab: "Burung" },
+  { img: "img/gunung.jpg", jawab: "Gunung" }
+];
+
+let skor = 0, waktu = 15, timerInterval, currentRound = 0, totalRound = 0, jumlahOpsiDefault = 4;
+let usedIndex = [];
+let selectedLevel = null;
+
+// --- Motivasi acak di menu ---
+function randomMotivasi() {
+  motivasiText.textContent = motivasiList[Math.floor(Math.random() * motivasiList.length)];
+}
+randomMotivasi();
+setInterval(randomMotivasi, 5000);
+
+// --- Alert popup ---
+function showAlert(text, color = "#0ff") {
+  alertBox.textContent = text;
+  alertBox.style.color = color;
+  alertBox.style.boxShadow = `0 0 20px ${color}`;
+  alertBox.classList.add("show");
+  setTimeout(() => alertBox.classList.remove("show"), 1200);
+}
+
+// --- Pilih level neon ---
+document.querySelectorAll('.level-buttons button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-buttons button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedLevel = btn.dataset.level;
+  });
+});
+
+// --- Start game ---
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (!selectedLevel) {
+    showAlert("⚠️ Pilih level dulu!", "#ff0044");
+    return;
+  }
+
+  skor = 0; currentRound = 0; usedIndex = [];
+
+  const config = {
+    pemula: { round: 3, opsi: 4 },
+    mudah: { round: 4, opsi: 4 },
+    sedang: { round: 5, opsi: 5 },
+    sulit: { round: 6, opsi: 6 },
+    expert: { round: 7, opsi: 7 },
+    master: { round: 8, opsi: 8 },
+  };
+
+  const cfg = config[selectedLevel] || config.pemula;
+  totalRound = cfg.round;
+  jumlahOpsiDefault = cfg.opsi;
+
+  menuPage.classList.remove('active');
+  gamePage.classList.add('active');
+  mulaiRound();
+});
+
+// --- Mulai round ---
+function mulaiRound() {
+  if (currentRound >= totalRound) return tampilAkhir();
+  currentRound++;
+  roundText.textContent = `Round ${currentRound} dari ${totalRound}`;
+
+  let idx;
+  do { idx = Math.floor(Math.random()*gambarList.length); }
+  while (usedIndex.includes(idx) && usedIndex.length < gambarList.length);
+  usedIndex.push(idx);
+
+  const item = gambarList[idx];
+  gambarEl.src = item.img;
+  gambarEl.classList.remove("clear"); // gambar blur dulu
+
+  const semuaJawaban = gambarList.map(g=>g.jawab).filter(j=>j!==item.jawab);
+  const opsiSalah = [...semuaJawaban].sort(()=>Math.random()-0.5).slice(0,jumlahOpsiDefault-1);
+  const opsiFinal = [...opsiSalah, item.jawab].sort(()=>Math.random()-0.5);
+
+  optionsBox.innerHTML = '';
+  opsiFinal.forEach(o=>{
+    const btn=document.createElement('button');
+    btn.textContent=o;
+    btn.onclick=()=>cekJawaban(btn,o,item.jawab);
+    optionsBox.appendChild(btn);
+  });
+
+  if (waktuMode.checked) mulaiTimer(); else timerEl.textContent='';
+}
+
+
+
+// --- Timer ---
+function mulaiTimer() {
+  waktu = 15;
+  clearInterval(timerInterval);
+  timerEl.textContent = "⏳ Waktu: " + waktu;
+  timerInterval = setInterval(() => {
+    waktu--;
+    timerEl.textContent = "⏳ Waktu: " + waktu;
+    if (waktu <= 0) {
+      clearInterval(timerInterval);
+      mulaiRound();
+    }
+  }, 1000);
+}
+
+// --- Cek jawaban ---
+function cekJawaban(btn,pilih,benar){
+  clearInterval(timerInterval);
+  const semuaBtn = optionsBox.querySelectorAll('button');
+  semuaBtn.forEach(b=>b.disabled=true);
+
+  // gambar jadi jelas setelah memilih
+  gambarEl.classList.add("clear");
+
+  if(pilih===benar){
+    btn.classList.add('benar'); skor++;
+    showAlert("✅ Benar!", "#00ff66");
+  } else {
+    btn.classList.add('salah');
+    semuaBtn.forEach(b=>{ if(b.textContent===benar) b.classList.add('benar'); });
+    showAlert("❌ Salah!", "#ff0044");
+  }
+
+  setTimeout(()=>mulaiRound(),1500);
+}
+// --- Tampil hasil akhir ---
+function tampilAkhir() {
+  resultBox.classList.add("show");
+  pesanHasil.textContent = "🎉 Game Selesai! 🎉";
+  let motivasiAkhir;
+  if (skor === 0) motivasiAkhir = "Awal yang bagus! Coba lagi untuk lebih baik 💪";
+  else if (skor < totalRound / 2) motivasiAkhir = "Keren! Terus tingkatkan kemampuanmu ⚡";
+  else motivasiAkhir = "Luar biasa! Kamu benar-benar hebat 🌟";
+  motivasiHasil.textContent = `Skor kamu: ${skor}/${totalRound}\n${motivasiAkhir}`;
+}
+
+// --- Tombol ulang / menu ---
+document.getElementById('ulangBtn').onclick = () => {
+  resultBox.classList.remove("show");
+  skor = 0; currentRound = 0; usedIndex = [];
+  mulaiRound();
+};
+
+document.getElementById('menuBtn').onclick = () => {
+  resultBox.classList.remove("show");
+  gamePage.classList.remove('active');
+  menuPage.classList.add('active');
+};
+</script>
+</body>
+</html>

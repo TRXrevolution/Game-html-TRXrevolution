@@ -1,0 +1,420 @@
+<!DOCTYPE html><html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Card Game - Neon Dark</title>
+<style>
+  body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui; 
+  background:#05060a;
+  color:#e6eef8;
+  }
+  .screen{display:none;padding:20px;}
+  .screen.active{display:block;}
+  button{cursor:pointer;padding:10px 14px;border-radius:10px;border:none;background:#0b0f17;color:#00ffff;}
+  select{padding:8px;border-radius:8px;border:none;}
+  .board{
+  display:grid;
+  gap:12px;
+  margin-top:20px;
+  justify-content:center;
+  }
+  .board.size-3x4{grid-template-columns:repeat(3, 80px);}
+  .board.size-4x4{grid-template-columns:repeat(4, 80px);}
+  .board.size-6x4{grid-template-columns:repeat(6, 60px);}
+.card{
+  width:80px;
+  height:80px;
+  perspective:1000px;
+  cursor:pointer;
+  border:1px solid #00ffff;   
+  border-radius:6px;
+  }
+.inner{
+  position:relative;
+  width:100%;height:100%;
+  transition:transform .5s;
+  transform-style:preserve-3d;
+  }
+  .card.flipped .inner{
+  transform:rotateY(180deg);
+  }
+.face{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  font-weight:700;
+  border-radius:12px;
+  backface-visibility:hidden;
+  }
+.face.front{
+  background:linear-gradient(135deg, rgba(0,240,255,0.04), rgba(255,46,196,0.03));
+  border:1px solid rgba(255,255,255,0.03);
+  transform:rotateY(180deg);
+  }
+.face.back{
+  background:linear-gradient(135deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.02);
+  }
+.card.matched .front{
+  box-shadow:0 6px 30px rgba(0,240,255,0.06),0 0 18px rgba(0,240,255,0.08);
+  border:1px solid rgba(0,240,255,0.18);
+  border:1px solid red;
+  }
+.status{
+  display:flex;gap:20px;
+  margin-top:20px;
+  }
+.stat{
+  background:rgba(255,255,255,0.03);
+  padding:10px;
+  border-radius:
+  10px;flex:1;
+  text-align:center;
+  }
+  .overlay{
+  position:fixed;inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(6px);
+  }
+  .modal{
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  padding:22px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.04);max-width:420px;color:#e6eef8;}
+</style>
+</head>
+<body><!-- MENU UTAMA --><!-- MENU SCREEN -->
+<div id="menuScreen" class="screen active">  
+  <h1>Memory Card</h1>  
+   <p id="selamatdatangUser">Halo, #{namaUser}! Selamat datang di:</p>
+  <label>Pilih Level:</label>  
+  <select id="levelSelect">  
+    <option value="easy">Easy (3x4)</option>  
+    <option value="medium" selected>Medium (4x4)</option>  
+    <option value="hard">Hard (6x4)</option>  
+  </select>  
+  <br><br>  
+  <button id="startGame">Mulai</button>  
+  <div class="instructions" style="margin-top:15px; font-size:14px; color:var(--muted); line-height:1.6;">
+  <details>
+    <summary style="
+      cursor:pointer; 
+      font-weight:600; 
+      color:#e6eef6; 
+      font-size:15px;
+      outline:none; 
+      -webkit-tap-highlight-color:transparent;
+    ">
+      Apa Itu Memory Card?
+    </summary>
+    <div style="
+      margin-top:10px; 
+      padding-left:12px; 
+      max-height:200px;   /* tinggi tetap */
+      overflow-y:auto;    /* aktifkan scroll */
+    ">
+      <p>
+        <b>Memory Card</b> adalah permainan mencocokkan kartu berpasangan. 
+        Tujuannya melatih ingatan, konsentrasi, dan ketelitian 😆.</p>
+
+      <p><b>Cara memainkan:</b></p>
+      <ol style="margin-top:4px; margin-bottom:8px;">
+        <li>Pilih tingkat kesulitan (misal: Easy 3x4, Medium 4x4, Hard 6x4).</li>
+        <li>Klik tombol <b>Mulai</b> untuk mengacak kartu dan memulai permainan.</li>
+        <li>Klik kartu untuk membukanya, cari pasangan yang sama.</li>
+        <li>Cocokkan semua pasangan untuk menyelesaikan permainan 🎉.</li>
+      </ol>
+
+      <p><b>Fitur:</b></p>
+      <ul style="margin-top:4px; margin-bottom:8px;">
+        <li>🔀 Tombol <b>Hint</b> untuk melihat kartu.</li>
+        <li>⏱️ Timer & jumlah langkah otomatis dihitung.</li>
+        <li>🏆 Setelah selesai, tampil langkah & waktu.</li>
+      </ul>
+    </div>
+  </details>
+</div>
+</div>  
+
+
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <button id="backToMenu" style="margin-bottom:12px;">← Kembali ke Menu</button>
+
+  <!-- STATUS BAR -->
+  <div class="status" style="display:flex; gap:20px; margin-bottom:12px;">
+    <div class="stat">
+      <div>Hint</div>
+      <strong id="hints">0</strong>
+    </div>
+    <div class="stat">
+      <div>Waktu</div>
+      <strong id="time">00:00</strong>
+    </div>
+    <div class="stat">
+      <div>Langkah</div>
+      <strong id="moves">0</strong>
+    </div>
+    <div class="stat">
+      <div>Pasangan Ditemukan</div>
+      <strong id="found">0 / 0</strong>
+    </div>
+  </div>
+
+  <!-- TOMBOL KONTROL -->
+  <div class="controls" style="margin-bottom:12px; display:flex; gap:10px;">
+    <button id="restartBtn">Restart</button>
+    <button id="hintBtn">Hint</button>
+    <button id="pauseBtn">Pause</button>
+  </div>
+
+  <!-- BOARD GAME -->
+  <div id="board" class="board size-4x4"></div>
+</div>
+
+<!-- MODAL FINISH -->
+<template id="finishTpl">
+  <div class="overlay">
+    <div class="modal">
+      <h2>Selamat! 🎉</h2>
+      <p>Kamu menyelesaikan permainan.</p>
+      <div style="margin-top:10px;">
+        Waktu: <strong id="finalTime">00:00</strong> | Langkah: <strong id="finalMoves">0</strong>
+      </div>
+      <br>
+      <button id="playAgain">Main Lagi</button>
+      <button id="closeModal">Tutup</button>
+    </div>
+  </div>
+
+</template><script>
+    function updateTeks() {
+  let anamaUserTRX = localStorage.getItem("anUsrTRXrevolution_Δt*E=mc^2_∫∫f(x,y)dxdx_!0987654321") || "teman";
+  anamaUserTRX = anamaUserTRX
+    .split(" ")
+    .map(kata => kata.charAt(0).toUpperCase() + kata.slice(1).toLowerCase())
+    .join(" ");
+  const teks = `Halo, ${anamaUserTRX}! Selamat datang di :`;
+  document.getElementById("selamatdatangUser").innerText = teks;
+}
+
+window.onload = updateTeks;
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const menuScreen = document.getElementById('menuScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const startGame = document.getElementById('startGame');
+  const backToMenu = document.getElementById('backToMenu');
+  const levelSelect = document.getElementById('levelSelect');
+
+  const boardEl = document.getElementById('board');
+  const timeEl = document.getElementById('time');
+  const movesEl = document.getElementById('moves');
+  const foundEl = document.getElementById('found');
+  const hintsEl = document.getElementById('hints');
+  const restartBtn = document.getElementById('restartBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+
+  class MemoryGame {
+    constructor(opts){
+      this.boardEl = opts.boardEl;
+      this.timeEl = opts.timeEl;
+      this.movesEl = opts.movesEl;
+      this.foundEl = opts.foundEl;
+      this.hintsEl = opts.hintsEl;
+      this.onFinish = opts.onFinish || function(){};
+      this.icons = ["🍉","🍓","🍌","🍇","🍒","🍍","🥝","🍑","🍋","🍊","🍐","🥥","🥭","🍈","🍏","🍆"];
+      this.timer=null;
+      this.seconds=0;
+      this.hintsLeft=0;
+      this.reset();
+    }
+
+    start(difficulty){
+      const counts={easy:6,medium:8,hard:12};
+      this.pairs = counts[difficulty]||8;
+      this.gridClass = (difficulty==='easy')?'size-3x4':(difficulty==='hard')?'size-6x4':'size-4x4';
+
+      // set hint berdasarkan level
+      this.hintsLeft = (difficulty==='easy') ? 6 : (difficulty==='medium') ? 3 : 2;
+
+      this.setupBoard();
+      this.startTimer();
+      this.running=true;
+      this.updateStats(); // update hint saat start
+    }
+
+    updateStats(){
+      this.timeEl.textContent = this.formatTime(this.seconds);
+      this.movesEl.textContent = this.moves;
+      this.foundEl.textContent = `${this.matched.size/2} / ${this.pairs || 0}`;
+      if(this.hintsEl) this.hintsEl.textContent = this.hintsLeft; 
+    }
+
+    reset(){
+      this.board=[];
+      this.flipped=[];
+      this.matched=new Set();
+      this.moves=0;
+      this.seconds=0;
+      this.running=false;
+      this.stopTimer();
+      this.updateStats();
+      this.clearBoard();
+    }
+
+    clearBoard(){ this.boardEl.innerHTML=''; }
+
+    setupBoard(){
+      const picks=this.shuffle(this.icons.slice()).slice(0,this.pairs);
+      const deck=this.shuffle([...picks,...picks]);
+      this.board=deck; 
+      this.render(); 
+      this.updateStats();
+    }
+
+    render(){
+      this.boardEl.className='board '+this.gridClass;
+      this.board.forEach((v,idx)=>{
+        const card=document.createElement('div'); 
+        card.className='card'; 
+        card.setAttribute('data-index',idx);
+        const inner=document.createElement('div'); inner.className='inner';
+        const front=document.createElement('div'); front.className='face front'; front.textContent=v;
+        const back=document.createElement('div'); back.className='face back'; back.textContent='?';
+        inner.appendChild(front); inner.appendChild(back); 
+        card.appendChild(inner);
+        card.addEventListener('click',()=>this.onCardClick(idx));
+        this.boardEl.appendChild(card);
+      });
+    }
+
+    onCardClick(idx){
+      if(!this.running || this.matched.has(idx) || this.flipped.includes(idx)) return;
+      const node=this.boardEl.querySelector(`.card[data-index="${idx}"]`);
+      node.classList.add('flipped'); 
+      this.flipped.push(idx);
+
+      if(this.flipped.length===2){
+        this.moves++; this.updateStats();
+        const [a,b]=this.flipped;
+        if(this.board[a]===this.board[b]){
+          this.matched.add(a); this.matched.add(b); this.flipped=[]; this.updateStats();
+          if(this.matched.size===this.board.length) this.finish();
+        } else {
+          setTimeout(()=>{
+            this.flipped.forEach(i=>{
+              const n=this.boardEl.querySelector(`.card[data-index="${i}"]`);
+              if(n) n.classList.remove('flipped');
+            });
+            this.flipped=[];
+          },700);
+        }
+      }
+    }
+
+    shuffle(arr){ 
+      for(let i=arr.length-1;i>0;i--){ 
+        const j=Math.floor(Math.random()*(i+1)); 
+        [arr[i],arr[j]]=[arr[j],arr[i]]; 
+      } 
+      return arr; 
+    }
+
+    startTimer(){ this.stopTimer(); this.timer=setInterval(()=>{this.seconds++; this.updateStats();},1000); }
+    stopTimer(){ if(this.timer){ clearInterval(this.timer); this.timer=null; } }
+
+    pause(){ this.running=false; this.stopTimer(); }
+    resume(){ if(!this.running){ this.running=true; this.startTimer(); } }
+
+    formatTime(s){ const m=Math.floor(s/60); const sec=s%60; return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+
+    finish(){ 
+      this.stopTimer(); 
+      this.running=false; 
+      this.onFinish({time:this.formatTime(this.seconds),moves:this.moves}); 
+    }
+
+    revealHint(){
+  if(this.hintsLeft <= 0) return; // tidak bisa kalau habis
+
+  // cari semua kartu yang belum match
+  const unmatched = [];
+  for(let i=0;i<this.board.length;i++) if(!this.matched.has(i)) unmatched.push(i);
+  if(unmatched.length <= 0) return;
+
+  // flip semua yang belum match
+  unmatched.forEach(i=>{
+    const n = this.boardEl.querySelector(`.card[data-index="${i}"]`);
+    if(n) n.classList.add('flipped');
+  });
+
+  // balik lagi setelah 1 detik
+  setTimeout(()=>{
+    unmatched.forEach(i=>{
+      const n = this.boardEl.querySelector(`.card[data-index="${i}"]`);
+      if(n) n.classList.remove('flipped');
+    });
+  }, 1000);
+
+  this.hintsLeft--; 
+  this.updateStats();
+}
+}
+
+  // Instance game
+  const game = new MemoryGame({boardEl, timeEl, movesEl, foundEl, hintsEl, onFinish: finishHandler});
+
+  startGame.addEventListener('click', ()=>{
+  menuScreen.classList.remove('active');
+  gameScreen.classList.add('active');
+  game.reset();
+  game.start(levelSelect.value);
+
+  // Mulai preview singkat setelah delay kecil
+  game.running = false; // matikan klik dulu
+  setTimeout(()=>{
+    const allCards = boardEl.querySelectorAll('.card');
+    allCards.forEach(card => card.classList.add('flipped')); // buka semua
+
+    setTimeout(()=>{
+      allCards.forEach(card => card.classList.remove('flipped')); // tutup lagi
+      game.running = true; // mulai permainan sesungguhnya
+    }, 1500); // tampilkan 1,5 detik
+  }, 500); // delay awal 0,3 detik
+});
+
+  backToMenu.addEventListener('click', ()=>{
+    gameScreen.classList.remove('active');
+    menuScreen.classList.add('active');
+    game.reset();
+  });
+
+  restartBtn.addEventListener('click', ()=>{ game.reset(); game.start(levelSelect.value); });
+  pauseBtn.addEventListener('click', ()=>{ if(game.running){ game.pause(); pauseBtn.textContent='Resume'; } else { game.resume(); pauseBtn.textContent='Pause'; }});
+  hintBtn.addEventListener('click', ()=>{ game.revealHint(); });
+
+  function finishHandler(result){
+    const tpl=document.getElementById('finishTpl');
+    const node=tpl.content.cloneNode(true);
+    node.querySelector('#finalTime').textContent=result.time;
+    node.querySelector('#finalMoves').textContent=result.moves;
+    const overlay=node.querySelector('.overlay');
+    document.body.appendChild(overlay);
+    overlay.querySelector('#playAgain').addEventListener('click', ()=>{ overlay.remove(); game.reset(); game.start(levelSelect.value); });
+    overlay.querySelector('#closeModal').addEventListener('click', ()=>{ overlay.remove(); });
+  }
+});
+
+</script></body>
+</html>
